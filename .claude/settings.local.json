@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm install:*)",
+      "WebFetch(domain:atoms.dev)",
+      "WebSearch",
+      "Bash(pnpm add:*)"
+    ]
+  }
+}
