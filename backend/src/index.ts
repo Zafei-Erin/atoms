@@ -1,7 +1,23 @@
+import "dotenv/config";
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { serve } from "@hono/node-server";
+import router from "./routes";
 
 const app = new Hono();
+
+app.use(
+  "/*",
+  cors({
+    origin: process.env.APP_URL as string,
+    allowHeaders: ["Content-Type", "Authorization"],
+    allowMethods: ["GET", "POST", "OPTIONS"],
+    exposeHeaders: ["Set-Cookie"],
+    credentials: true,
+  })
+);
+
+app.route("/", router);
 
 app.get("/", (c) => {
   return c.json({ message: "Hello from Hono!" });

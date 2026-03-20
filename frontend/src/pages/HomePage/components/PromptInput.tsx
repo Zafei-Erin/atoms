@@ -3,9 +3,10 @@ import { ArrowRightIcon } from '../../../icons'
 interface PromptInputProps {
   value: string
   onChange: (value: string) => void
+  onStart?: () => void
 }
 
-export function PromptInput({ value, onChange }: PromptInputProps) {
+export function PromptInput({ value, onChange, onStart }: PromptInputProps) {
   const disabled = !value.trim()
 
   return (
@@ -33,6 +34,7 @@ export function PromptInput({ value, onChange }: PromptInputProps) {
       <div className="flex justify-end mt-3">
         <button
           disabled={disabled}
+          onClick={onStart}
           className="flex items-center gap-1.5 rounded-full cursor-pointer transition-colors"
           style={{
             padding: '7px 18px',

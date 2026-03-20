@@ -1,9 +1,21 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Navbar } from "../../components";
 import { AvatarRow, PromptInput, HomeCta } from "./components";
+import { useAuth } from "../../hooks/useAuth";
 
 export function HomePage() {
   const [input, setInput] = useState("");
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleStart = () => {
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+    // TODO: 已登录时的提交逻辑
+  };
 
   return (
     <div className="h-screen bg-[#f4f4f4] flex flex-col">
@@ -34,7 +46,7 @@ export function HomePage() {
 
         {/* 输入框 + CTA */}
         <div className="w-full max-w-[740px] flex flex-col flex-shrink-0 gap-6">
-          <PromptInput value={input} onChange={setInput} />
+          <PromptInput value={input} onChange={setInput} onStart={handleStart} />
           <HomeCta onIdeaClick={setInput} />
         </div>
       </main>
