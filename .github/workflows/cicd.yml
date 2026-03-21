@@ -52,6 +52,6 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd ~/atoms
-            git pull origin main
+            git pull origin fix-cicd
             docker compose up --build -d
             docker compose ps
