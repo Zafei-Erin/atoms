@@ -8,7 +8,17 @@ import { streamChat } from "@/api/chat";
 
 interface StoredMessage {
   role: "user" | "assistant";
-  content: { type: string; text?: string }[];
+  content: Array<
+    | { type: string; text?: string }
+    | {
+        type: "tool-call";
+        toolCallId: string;
+        toolName: string;
+        args: Record<string, unknown>;
+        argsText: string;
+        result?: string;
+      }
+  >;
 }
 
 export function ChatPage() {
@@ -93,6 +103,18 @@ function ChatPageInner({
         let buffer = "";
         let reasoningText = "";
         let responseText = "";
+        const toolParts = new Map<
+          string,
+          {
+            type: "tool-call";
+            toolCallId: string;
+            toolName: string;
+            args: Record<string, unknown>;
+            argsText: string;
+            status: { type: "running" | "complete" };
+            result?: string;
+          }
+        >();
 
         while (true) {
           const { done, value } = await reader.read();
@@ -107,12 +129,39 @@ function ChatPageInner({
             const data = line.slice(6).trim();
             if (!data) continue;
             try {
-              const { type, text: chunk } = JSON.parse(data);
+              const parsed = JSON.parse(data) as
+                | { type: "reasoning"; text: string }
+                | { type: "text"; text: string }
+                | {
+                    type: "tool";
+                    toolCallId: string;
+                    toolName: string;
+                    status: "running" | "complete";
+                    argsText: string;
+                    result?: string;
+                  };
 
-              if (type === "reasoning") {
-                reasoningText += chunk;
+              if (parsed.type === "reasoning") {
+                reasoningText += parsed.text;
+              } else if (parsed.type === "tool") {
+                let args: Record<string, unknown> = {};
+                try {
+                  args = JSON.parse(parsed.argsText) as Record<string, unknown>;
+                } catch {
+                  args = {};
+                }
+
+                toolParts.set(parsed.toolCallId, {
+                  type: "tool-call",
+                  toolCallId: parsed.toolCallId,
+                  toolName: parsed.toolName,
+                  args,
+                  argsText: parsed.argsText,
+                  status: { type: parsed.status },
+                  ...(parsed.result !== undefined ? { result: parsed.result } : {}),
+                });
               } else {
-                responseText += chunk;
+                responseText += parsed.text;
 
                 const match = responseText.match(/```html\n([\s\S]*?)(?:```|$)/);
                 if (match) {
@@ -121,7 +170,18 @@ function ChatPageInner({
                 }
               }
 
-              const content: Array<{ type: "text" | "reasoning"; text: string }> = [];
+              const content: Array<
+                | { type: "text" | "reasoning"; text: string }
+                | {
+                    type: "tool-call";
+                    toolCallId: string;
+                    toolName: string;
+                    args: Record<string, unknown>;
+                    argsText: string;
+                    status: { type: "running" | "complete" };
+                    result?: string;
+                  }
+              > = Array.from(toolParts.values());
               if (reasoningText) content.push({ type: "reasoning", text: reasoningText });
               if (responseText) content.push({ type: "text", text: responseText });
 
@@ -140,13 +200,29 @@ function ChatPageInner({
   const runtime = useLocalRuntime(chatAdapter, {
     initialMessages: initialMessages.map((m) => ({
       role: m.role,
-      content: m.content
-        .filter(
-          (p): p is { type: string; text: string } =>
-            (p.type === "text" || p.type === "reasoning") &&
-            typeof p.text === "string",
-        )
-        .map((p) => ({ type: p.type as "text" | "reasoning", text: p.text })),
+      content: m.content.flatMap((p) => {
+        if (
+          (p.type === "text" || p.type === "reasoning") &&
+          typeof p.text === "string"
+        ) {
+          return [{ type: p.type as "text" | "reasoning", text: p.text }];
+        }
+
+        if (p.type === "tool-call") {
+          return [
+            {
+              type: "tool-call" as const,
+              toolCallId: p.toolCallId,
+              toolName: p.toolName,
+              args: p.args,
+              argsText: p.argsText,
+              ...(p.result !== undefined ? { result: p.result } : {}),
+            },
+          ];
+        }
+
+        return [];
+      }),
     })),
   });
 

@@ -1,6 +1,12 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import OpenAI from "openai";
+import type {
+  AgentContentPart,
+  AgentMessage,
+  AgentToolCallPart,
+} from "../agents/html";
+import { runHtmlAgent } from "../agents/html";
 import { requireAuth, type AuthVariables } from "../middleware/auth";
 import { getProject, updateProject } from "../repositories/projects";
 import { insertMessage } from "../repositories/messages";
@@ -11,8 +17,11 @@ const openai = new OpenAI({
   baseURL: process.env.OPENAI_BASE_URL,
 });
 
-type ContentPart = { type: string; text?: string };
-type Message = { role: "user" | "assistant"; content: ContentPart[] };
+type Message = AgentMessage;
+
+function isTextPart(part: Message["content"][number]): part is AgentContentPart {
+  return part.type === "text";
+}
 
 chatRouter.post("/:projectId", requireAuth, async (c) => {
   const user = c.get("user");
@@ -40,66 +49,31 @@ chatRouter.post("/:projectId", requireAuth, async (c) => {
       projectId,
       user.id,
       lastMessage.content
-        .filter((p) => p.type === "text")
+        .filter(isTextPart)
         .map((p) => p.text ?? "")
         .join(""),
     );
   }
 
-  const openaiMessages = allMessages.map((m) => ({
-    role: m.role,
-    content: m.content
-      .filter((p) => p.type === "text")
-      .map((p) => p.text ?? "")
-      .join(""),
-  }));
-
   try {
-    // @ts-ignore — MiniMax 扩展参数
-    const stream = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL ?? "MiniMax-M2.5",
-      messages: [
-        {
-          role: "system",
-          content: `You are an expert full-stack developer. When the user asks you to build something, always produce a single, complete, self-contained HTML file with all CSS and JavaScript inline. Wrap the file in a \`\`\`html code block. The app must work without any external dependencies or build steps — use CDN links if needed (e.g. Tailwind CDN, Alpine.js, Chart.js). After the code block, briefly explain what you built.`,
-        },
-        ...openaiMessages,
-      ],
-      stream: true,
-      reasoning_split: true,
-    });
-
-    let reasoningText = "";
-    let responseText = "";
-
     return streamSSE(c, async (sse) => {
-      for await (const chunk of stream) {
-        const delta = chunk.choices[0]?.delta as Record<string, unknown>;
+      const { responseText, reasoningText, completedToolCalls } =
+        await runHtmlAgent(
+        openai,
+        allMessages,
+        {
+          onEvent: async (event) => {
+            await sse.writeSSE({
+              data: JSON.stringify(event),
+            });
+          },
+        },
+      );
 
-        // MiniMax reasoning_details
-        const details = delta?.reasoning_details as
-          | { text?: string }[]
-          | undefined;
-        const reasoning = details?.[0]?.text ?? "";
-        if (reasoning) {
-          reasoningText += reasoning;
-          await sse.writeSSE({
-            data: JSON.stringify({ type: "reasoning", text: reasoning }),
-          });
-        }
-
-        const text = (delta?.content as string) ?? "";
-        if (text) {
-          responseText += text;
-          await sse.writeSSE({
-            data: JSON.stringify({ type: "text", text }),
-          });
-        }
-      }
-
-      const content: ContentPart[] = [];
-      if (reasoningText)
-        content.push({ type: "reasoning", text: reasoningText });
+      const content: Array<AgentContentPart | AgentToolCallPart> = [
+        ...completedToolCalls,
+      ];
+      if (reasoningText) content.push({ type: "reasoning", text: reasoningText });
       if (responseText) content.push({ type: "text", text: responseText });
       await insertMessage(projectId, "assistant", content);
     });

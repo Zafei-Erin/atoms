@@ -224,8 +224,24 @@ const defaultComponents = memoizeMarkdownComponents({
     const [expanded, setExpanded] = useState(false);
 
     useEffect(() => {
-      if (!ref.current) return;
-      setIsLong(ref.current.scrollHeight > CODE_COLLAPSE_HEIGHT + 40);
+      const element = ref.current;
+      if (!element) return;
+
+      const updateHeightState = () => {
+        setIsLong(element.scrollHeight > CODE_COLLAPSE_HEIGHT + 40);
+      };
+
+      updateHeightState();
+
+      const observer = new ResizeObserver(() => {
+        updateHeightState();
+      });
+
+      observer.observe(element);
+
+      return () => {
+        observer.disconnect();
+      };
     }, []);
 
     return (

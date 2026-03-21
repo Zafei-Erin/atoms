@@ -3,6 +3,7 @@ import {
   Reasoning,
   ReasoningGroup,
 } from "@/components/assistant-ui/reasoning";
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { MessagePrimitive, useAuiState } from "@assistant-ui/react";
 import { RefreshCw, MoreHorizontal } from "lucide-react";
 import type { FC } from "react";
@@ -40,6 +41,9 @@ const AgentBubble: FC = () => (
           Text: MarkdownText,
           Reasoning: Reasoning,
           ReasoningGroup: ReasoningGroup,
+          tools: {
+            Fallback: ToolFallback,
+          },
         }}
       />
     </div>
