@@ -6,15 +6,16 @@ import { useAuth } from "../../hooks/useAuth";
 
 export function HomePage() {
   const [input, setInput] = useState("");
-  const { user } = useAuth();
+  const { user, isPending } = useAuth();
   const navigate = useNavigate();
 
   const handleStart = () => {
+    if (isPending) return;
     if (!user) {
       navigate("/login");
       return;
     }
-    // TODO: 已登录时的提交逻辑
+    navigate("/chat", { state: { initialMessage: input } });
   };
 
   return (
