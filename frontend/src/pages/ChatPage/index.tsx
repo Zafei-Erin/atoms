@@ -55,7 +55,6 @@ const chatAdapter: ChatModelAdapter = {
 export function ChatPage() {
   const runtime = useLocalRuntime(chatAdapter);
   const location = useLocation();
-  const navigate = useNavigate();
   const initialMessage = (
     location.state as { initialMessage?: string } | null
   )?.initialMessage;
