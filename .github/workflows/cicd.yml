@@ -34,6 +34,9 @@ jobs:
         run: pnpm --filter frontend lint
 
       - name: Frontend type-check & build
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL || vars.BETTER_AUTH_URL || 'http://localhost:3000' }}
+          VITE_APP_URL: ${{ vars.VITE_APP_URL || vars.APP_URL || 'http://localhost' }}
         run: pnpm --filter frontend build
 
       - name: Backend type-check & build
