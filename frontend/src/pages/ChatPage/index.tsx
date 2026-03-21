@@ -1,9 +1,12 @@
 import { AssistantRuntimeProvider, useLocalRuntime, type ChatModelAdapter } from "@assistant-ui/react";
 import { useLocation } from "react-router-dom";
 import { ChatLayout } from "./components";
+import { useArtifactStore } from "@/store/artifact";
 
 const chatAdapter: ChatModelAdapter = {
   async *run({ messages, abortSignal }) {
+    useArtifactStore.getState().clear();
+
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -43,6 +46,13 @@ const chatAdapter: ChatModelAdapter = {
         try {
           const { text: chunk } = JSON.parse(data);
           text += chunk;
+
+          // Extract HTML code block and update the artifact panel in real-time
+          const match = text.match(/```html\n([\s\S]*?)(?:```|$)/);
+          if (match) {
+            useArtifactStore.getState().setCode(match[1]);
+          }
+
           yield { content: [{ type: "text" as const, text }] };
         } catch {
           // Skip malformed SSE lines

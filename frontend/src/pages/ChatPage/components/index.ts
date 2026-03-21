@@ -3,3 +3,4 @@ export { ChatMessage } from "./ChatMessage";
 export { Composer } from "./Composer";
 export { CreditsBar } from "./CreditsBar";
 export { CapabilitiesPanel } from "./CapabilitiesPanel";
+export { ArtifactPanel } from "./ArtifactPanel";

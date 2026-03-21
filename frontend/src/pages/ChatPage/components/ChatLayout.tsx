@@ -1,9 +1,9 @@
 import { ThreadPrimitive, useAui } from "@assistant-ui/react";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChatMessage } from "./ChatMessage";
 import { Composer } from "./Composer";
 import { CreditsBar } from "./CreditsBar";
-import { CapabilitiesPanel } from "./CapabilitiesPanel";
+import { ArtifactPanel } from "./ArtifactPanel";
 
 const MIN_WIDTH = 240;
 const MAX_WIDTH = 600;
@@ -18,7 +18,6 @@ export function ChatLayout({ initialMessage }: ChatLayoutProps) {
   const sent = useRef(false);
   const [creditsVisible, setCreditsVisible] = useState(true);
   const [leftWidth, setLeftWidth] = useState(DEFAULT_WIDTH);
-  const isDragging = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(DEFAULT_WIDTH);
 
@@ -32,35 +31,29 @@ export function ChatLayout({ initialMessage }: ChatLayoutProps) {
     }
   }, [initialMessage, thread]);
 
-  const onMouseDown = useCallback((e: React.MouseEvent) => {
-    isDragging.current = true;
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
     startX.current = e.clientX;
     startWidth.current = leftWidth;
-    document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
-  }, [leftWidth]);
+  };
 
-  useEffect(() => {
-    const onMouseMove = (e: MouseEvent) => {
-      if (!isDragging.current) return;
-      const delta = e.clientX - startX.current;
-      const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth.current + delta));
-      setLeftWidth(newWidth);
-    };
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+    const delta = e.clientX - startX.current;
+    const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth.current + delta));
+    setLeftWidth(newWidth);
+  };
 
-    const onMouseUp = () => {
-      isDragging.current = false;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    document.body.style.userSelect = "";
+  };
 
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
-    return () => {
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
-    };
-  }, []);
+  const onPointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    document.body.style.userSelect = "";
+  };
 
   return (
     <div
@@ -99,15 +92,18 @@ export function ChatLayout({ initialMessage }: ChatLayoutProps) {
 
       {/* Drag handle */}
       <div
-        onMouseDown={onMouseDown}
-        className="w-1 flex-shrink-0 cursor-col-resize group relative hover:bg-blue-400/30 transition-colors"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
+        className="w-1 flex-shrink-0 cursor-col-resize relative hover:bg-blue-400/30 transition-colors"
       >
         <div className="absolute inset-y-0 -left-1 -right-1" />
       </div>
 
       {/* Right panel */}
-      <div className="flex-1 flex items-center justify-center bg-white">
-        <CapabilitiesPanel />
+      <div className="flex-1 bg-white overflow-hidden">
+        <ArtifactPanel />
       </div>
     </div>
   );

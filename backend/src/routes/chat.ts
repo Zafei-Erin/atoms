@@ -16,7 +16,10 @@ chatRouter.post("/", requireAuth, async (c) => {
   const body = await c.req.json<{ messages: Message[] }>();
 
   if (!Array.isArray(body?.messages) || body.messages.length === 0) {
-    return c.json({ error: "Invalid request: messages must be a non-empty array" }, 400);
+    return c.json(
+      { error: "Invalid request: messages must be a non-empty array" },
+      400,
+    );
   }
 
   const { messages } = body;
@@ -32,7 +35,13 @@ chatRouter.post("/", requireAuth, async (c) => {
   try {
     const stream = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL ?? "MiniMax-M2.5",
-      messages: openaiMessages,
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert full-stack developer. When the user asks you to build something, always produce a single, complete, self-contained HTML file with all CSS and JavaScript inline. Wrap the file in a \`\`\`html code block. The app must work without any external dependencies or build steps — use CDN links if needed (e.g. Tailwind CDN, Alpine.js, Chart.js). After the code block, briefly explain what you built.`,
+        },
+        ...openaiMessages,
+      ],
       stream: true,
     });
 
