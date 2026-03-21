@@ -11,10 +11,9 @@ const DEFAULT_WIDTH = 330;
 
 interface ChatLayoutProps {
   initialMessage?: string;
-  onAuthError?: () => void;
 }
 
-export function ChatLayout({ initialMessage, onAuthError: _onAuthError }: ChatLayoutProps) {
+export function ChatLayout({ initialMessage }: ChatLayoutProps) {
   const { thread } = useAui();
   const sent = useRef(false);
   const [creditsVisible, setCreditsVisible] = useState(true);

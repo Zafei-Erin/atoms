@@ -1,5 +1,5 @@
 import { AssistantRuntimeProvider, useLocalRuntime, type ChatModelAdapter } from "@assistant-ui/react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { ChatLayout } from "./components";
 
 const chatAdapter: ChatModelAdapter = {
@@ -60,12 +60,9 @@ export function ChatPage() {
     location.state as { initialMessage?: string } | null
   )?.initialMessage;
 
-  // Redirect to login if the adapter encounters a 401
-  const handleAuthError = () => navigate("/login");
-
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <ChatLayout initialMessage={initialMessage} onAuthError={handleAuthError} />
+      <ChatLayout initialMessage={initialMessage} />
     </AssistantRuntimeProvider>
   );
 }
