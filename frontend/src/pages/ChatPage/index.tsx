@@ -21,6 +21,9 @@ export function ChatPage() {
 
   useEffect(() => {
     if (!projectId) return;
+    // Clear immediately on project switch
+    useArtifactStore.getState().clear();
+    setInitialMessages(null);
     getProject(projectId)
       .then((data) => {
         const msgs = data.messages ?? [];
@@ -44,10 +47,13 @@ export function ChatPage() {
   }, [projectId]);
 
   if (loadError) return <div className="flex items-center justify-center h-screen text-gray-500">Failed to load project.</div>;
-  if (initialMessages === null) return null; // loading
+
+  // Empty shell while loading — same bg as chat layout, avoids flash
+  if (initialMessages === null) return <div className="flex h-screen bg-[#f3f3f3]" />;
 
   return (
     <ChatPageInner
+      key={projectId}
       projectId={projectId!}
       initialMessages={initialMessages}
       initialMessage={initialMessages.length === 0 ? initialMessage : undefined}
@@ -66,7 +72,6 @@ function ChatPageInner({
 }) {
   const chatAdapter: ChatModelAdapter = {
     async *run({ messages, abortSignal }) {
-      useArtifactStore.getState().setStreaming(true);
       try {
         const apiMessages = messages
           .filter((m) => m.role === "user" || m.role === "assistant")
@@ -105,7 +110,11 @@ function ChatPageInner({
               text += chunk;
 
               const match = text.match(/```html\n([\s\S]*?)(?:```|$)/);
-              if (match) useArtifactStore.getState().setCode(match[1]);
+              if (match) {
+                // Only show artifact loading when HTML is actually being generated
+                useArtifactStore.getState().setStreaming(true);
+                useArtifactStore.getState().setCode(match[1]);
+              }
 
               yield { content: [{ type: "text" as const, text }] };
             } catch {
