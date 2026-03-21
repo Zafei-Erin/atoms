@@ -3,19 +3,21 @@ import { useNavigate } from "react-router-dom";
 import { Navbar } from "../../components";
 import { AvatarRow, PromptInput, HomeCta } from "./components";
 import { useAuth } from "../../hooks/useAuth";
+import { createProject } from "@/api/projects";
 
 export function HomePage() {
   const [input, setInput] = useState("");
   const { user, isPending } = useAuth();
   const navigate = useNavigate();
 
-  const handleStart = () => {
+  const handleStart = async () => {
     if (isPending) return;
     if (!user) {
       navigate("/login");
       return;
     }
-    navigate("/chat", { state: { initialMessage: input } });
+    const { id } = await createProject();
+    navigate(`/chat/${id}`, { state: { initialMessage: input } });
   };
 
   return (

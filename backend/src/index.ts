@@ -11,7 +11,7 @@ app.use(
   cors({
     origin: process.env.APP_URL as string,
     allowHeaders: ["Content-Type", "Authorization"],
-    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     exposeHeaders: ["Set-Cookie"],
     credentials: true,
   })

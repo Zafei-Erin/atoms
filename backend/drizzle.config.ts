@@ -1,7 +1,7 @@
 import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
-  schema: "./src/db/auth-schema.ts",
+  schema: ["./src/db/auth-schema.ts", "./src/db/chat-schema.ts"],
   out: "./drizzle",
   dialect: "postgresql",
   dbCredentials: {
