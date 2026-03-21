@@ -9,8 +9,8 @@ import {
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
-import { type FC, memo, useState } from "react";
-import { CheckIcon, CopyIcon } from "lucide-react";
+import { type FC, memo, useRef, useState, useEffect } from "react";
+import { CheckIcon, ChevronDownIcon, CopyIcon } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
@@ -217,15 +217,58 @@ const defaultComponents = memoizeMarkdownComponents({
       {...props}
     />
   ),
-  pre: ({ className, ...props }) => (
-    <pre
-      className={cn(
-        "aui-md-pre overflow-x-auto rounded-t-none rounded-b-lg border border-border/50 border-t-0 bg-muted/30 p-3 text-xs leading-relaxed",
-        className,
-      )}
-      {...props}
-    />
-  ),
+  pre: function Pre({ className, children, ...props }) {
+    const CODE_COLLAPSE_HEIGHT = 96;
+    const ref = useRef<HTMLPreElement>(null);
+    const [isLong, setIsLong] = useState(false);
+    const [expanded, setExpanded] = useState(false);
+
+    useEffect(() => {
+      if (!ref.current) return;
+      setIsLong(ref.current.scrollHeight > CODE_COLLAPSE_HEIGHT + 40);
+    }, []);
+
+    return (
+      <div className="relative mb-6">
+        <pre
+          ref={ref}
+          className={cn(
+            "aui-md-pre overflow-x-auto rounded-t-none rounded-b-lg border border-border/50 border-t-0 bg-muted/30 p-3 text-xs leading-relaxed",
+            isLong && !expanded && "overflow-hidden",
+            className,
+          )}
+          style={
+            isLong && !expanded
+              ? { maxHeight: CODE_COLLAPSE_HEIGHT }
+              : undefined
+          }
+          {...props}
+        >
+          {children}
+        </pre>
+        {isLong && !expanded && (
+          <div className="absolute bottom-0 inset-x-0 rounded-b-lg bg-gradient-to-t from-muted/80 to-transparent h-10" />
+        )}
+        {isLong && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className={cn(
+              "flex items-center justify-center gap-1 w-full py-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors",
+              !expanded && "absolute -bottom-6 inset-x-0 rounded-b-lg",
+            )}
+          >
+            <ChevronDownIcon
+              className={cn(
+                "size-3 transition-transform",
+                expanded && "rotate-180",
+              )}
+            />
+            {expanded ? "Collapse" : "Expand"}
+          </button>
+        )}
+      </div>
+    );
+  },
   code: function Code({ className, ...props }) {
     const isCodeBlock = useIsMarkdownCodeBlock();
     return (

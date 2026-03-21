@@ -1,4 +1,8 @@
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import {
+  Reasoning,
+  ReasoningGroup,
+} from "@/components/assistant-ui/reasoning";
 import { MessagePrimitive, useAuiState } from "@assistant-ui/react";
 import { RefreshCw, MoreHorizontal } from "lucide-react";
 import type { FC } from "react";
@@ -31,12 +35,13 @@ const AgentBubble: FC = () => (
     </div>
 
     <div className="pl-[42px] text-[13px] text-gray-700 leading-relaxed">
-      <MessagePrimitive.Parts>
-        {({ part }) => {
-          if (part.type === "text") return <MarkdownText />;
-          return null;
+      <MessagePrimitive.Parts
+        components={{
+          Text: MarkdownText,
+          Reasoning: Reasoning,
+          ReasoningGroup: ReasoningGroup,
         }}
-      </MessagePrimitive.Parts>
+      />
     </div>
 
     <div className="pl-[42px] mt-2 flex items-center gap-0.5">

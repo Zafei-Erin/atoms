@@ -42,7 +42,10 @@ export function ChatLayout({ initialMessage }: ChatLayoutProps) {
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
     const delta = e.clientX - startX.current;
-    const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth.current + delta));
+    const newWidth = Math.min(
+      MAX_WIDTH,
+      Math.max(MIN_WIDTH, startWidth.current + delta),
+    );
     setLeftWidth(newWidth);
   };
 
@@ -57,17 +60,20 @@ export function ChatLayout({ initialMessage }: ChatLayoutProps) {
   };
 
   return (
-    <div className="flex h-screen bg-white relative">
+    <div className="flex h-screen max-h-screen bg-white relative">
       {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen((v) => !v)} />
+      <Sidebar
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen((v) => !v)}
+      />
 
       {/* Left panel */}
       <div
-        className="flex-shrink-0 flex flex-col bg-[#f3f3f3]"
+        className="flex-shrink-0 flex flex-col bg-[#f3f3f3] overflow-hidden"
         style={{ width: leftWidth }}
       >
         <ThreadPrimitive.Root
-          className="aui-root flex flex-col h-full"
+          className="aui-root flex flex-col flex-1 min-h-0"
           style={{ "--thread-max-width": "100%" } as React.CSSProperties}
         >
           <ThreadPrimitive.Viewport className="flex-1 overflow-y-auto px-4 pt-12 pb-2">

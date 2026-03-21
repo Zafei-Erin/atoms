@@ -4,7 +4,13 @@
       "Bash(pnpm install:*)",
       "WebFetch(domain:atoms.dev)",
       "WebSearch",
-      "Bash(pnpm add:*)"
+      "Bash(pnpm add:*)",
+      "Bash(npx tsc --noEmit)",
+      "WebFetch(domain:www.assistant-ui.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh issue view:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)"
     ]
   }
 }

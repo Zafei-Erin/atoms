@@ -91,7 +91,8 @@ function ChatPageInner({
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
-        let text = "";
+        let reasoningText = "";
+        let responseText = "";
 
         while (true) {
           const { done, value } = await reader.read();
@@ -106,17 +107,25 @@ function ChatPageInner({
             const data = line.slice(6).trim();
             if (!data) continue;
             try {
-              const { text: chunk } = JSON.parse(data);
-              text += chunk;
+              const { type, text: chunk } = JSON.parse(data);
 
-              const match = text.match(/```html\n([\s\S]*?)(?:```|$)/);
-              if (match) {
-                // Only show artifact loading when HTML is actually being generated
-                useArtifactStore.getState().setStreaming(true);
-                useArtifactStore.getState().setCode(match[1]);
+              if (type === "reasoning") {
+                reasoningText += chunk;
+              } else {
+                responseText += chunk;
+
+                const match = responseText.match(/```html\n([\s\S]*?)(?:```|$)/);
+                if (match) {
+                  useArtifactStore.getState().setStreaming(true);
+                  useArtifactStore.getState().setCode(match[1]);
+                }
               }
 
-              yield { content: [{ type: "text" as const, text }] };
+              const content: Array<{ type: "text" | "reasoning"; text: string }> = [];
+              if (reasoningText) content.push({ type: "reasoning", text: reasoningText });
+              if (responseText) content.push({ type: "text", text: responseText });
+
+              yield { content };
             } catch {
               // Skip malformed SSE lines
             }
@@ -132,8 +141,12 @@ function ChatPageInner({
     initialMessages: initialMessages.map((m) => ({
       role: m.role,
       content: m.content
-        .filter((p): p is { type: "text"; text: string } => p.type === "text" && typeof p.text === "string")
-        .map((p) => ({ type: "text" as const, text: p.text })),
+        .filter(
+          (p): p is { type: string; text: string } =>
+            (p.type === "text" || p.type === "reasoning") &&
+            typeof p.text === "string",
+        )
+        .map((p) => ({ type: p.type as "text" | "reasoning", text: p.text })),
     })),
   });
 

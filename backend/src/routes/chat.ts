@@ -20,7 +20,10 @@ chatRouter.post("/:projectId", requireAuth, async (c) => {
   const body = await c.req.json<{ messages: Message[] }>();
 
   if (!Array.isArray(body?.messages) || body.messages.length === 0) {
-    return c.json({ error: "Invalid request: messages must be a non-empty array" }, 400);
+    return c.json(
+      { error: "Invalid request: messages must be a non-empty array" },
+      400,
+    );
   }
 
   const project = await getProject(projectId, user.id);
@@ -52,6 +55,7 @@ chatRouter.post("/:projectId", requireAuth, async (c) => {
   }));
 
   try {
+    // @ts-ignore — MiniMax 扩展参数
     const stream = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL ?? "MiniMax-M2.5",
       messages: [
@@ -62,20 +66,42 @@ chatRouter.post("/:projectId", requireAuth, async (c) => {
         ...openaiMessages,
       ],
       stream: true,
+      reasoning_split: true,
     });
 
-    let fullText = "";
+    let reasoningText = "";
+    let responseText = "";
 
     return streamSSE(c, async (sse) => {
       for await (const chunk of stream) {
-        const text = chunk.choices[0]?.delta?.content ?? "";
+        const delta = chunk.choices[0]?.delta as Record<string, unknown>;
+
+        // MiniMax reasoning_details
+        const details = delta?.reasoning_details as
+          | { text?: string }[]
+          | undefined;
+        const reasoning = details?.[0]?.text ?? "";
+        if (reasoning) {
+          reasoningText += reasoning;
+          await sse.writeSSE({
+            data: JSON.stringify({ type: "reasoning", text: reasoning }),
+          });
+        }
+
+        const text = (delta?.content as string) ?? "";
         if (text) {
-          fullText += text;
-          await sse.writeSSE({ data: JSON.stringify({ text }) });
+          responseText += text;
+          await sse.writeSSE({
+            data: JSON.stringify({ type: "text", text }),
+          });
         }
       }
 
-      await insertMessage(projectId, "assistant", [{ type: "text", text: fullText }]);
+      const content: ContentPart[] = [];
+      if (reasoningText)
+        content.push({ type: "reasoning", text: reasoningText });
+      if (responseText) content.push({ type: "text", text: responseText });
+      await insertMessage(projectId, "assistant", content);
     });
   } catch (e) {
     console.error("[chat] upstream error:", e);
@@ -83,9 +109,13 @@ chatRouter.post("/:projectId", requireAuth, async (c) => {
   }
 });
 
-async function generateTitle(projectId: string, userId: string, userMessage: string) {
+async function generateTitle(
+  projectId: string,
+  userId: string,
+  userMessage: string,
+) {
   try {
-    // @ts-ignore — MiniMax 扩展参数，将 thinking 内容分离到 reasoning_details 字段
+    // @ts-ignore — MiniMax 扩展参数
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL ?? "MiniMax-M2.5",
       messages: [
@@ -97,8 +127,7 @@ async function generateTitle(projectId: string, userId: string, userMessage: str
       stream: false,
       reasoning_split: true,
     });
-    const raw = completion.choices[0]?.message?.content ?? "";
-    const title = raw.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+    const title = (completion.choices[0]?.message?.content ?? "").trim();
     if (title) {
       await updateProject(projectId, userId, { title });
     }
