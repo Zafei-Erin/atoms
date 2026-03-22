@@ -11,13 +11,14 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY frontend/package.json ./frontend/
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile --filter frontend
+RUN pnpm install --frozen-lockfile
 
 # Copy source
 COPY frontend/ ./frontend/
 
 # Build (skip tsc type checking, vite handles transpilation)
 WORKDIR /app/frontend
+RUN echo "[build-env]" && cat .env.production
 RUN pnpm exec vite build
 
 # Stage 2: Serve with nginx
