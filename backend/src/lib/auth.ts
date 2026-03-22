@@ -10,6 +10,19 @@ export const auth = betterAuth({
     enabled: true,
     domain: process.env.DOMAIN,
   },
+  defaultCookieAttributes:
+    process.env.ENV === "local"
+      ? {
+          // Localhost development settings
+          sameSite: "lax",
+          secure: true,
+        }
+      : {
+          // Production cross-subdomain settings
+          sameSite: "none",
+          secure: true,
+          partitioned: true,
+        },
   trustedOrigins: [process.env.APP_URL as string],
   socialProviders: {
     google: {
