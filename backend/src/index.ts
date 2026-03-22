@@ -9,12 +9,22 @@ const app = new Hono();
 app.use(
   "/*",
   cors({
-    origin: process.env.APP_URL as string,
+    origin: (origin) => {
+      if (
+        origin &&
+        (origin.includes(process.env.APP_URL as string) ||
+          origin.includes("localhost") ||
+          origin.includes("127.0.0.1"))
+      ) {
+        return origin;
+      }
+      return null;
+    },
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     exposeHeaders: ["Set-Cookie"],
     credentials: true,
-  })
+  }),
 );
 
 app.route("/", router);

@@ -21,7 +21,6 @@ export const auth = betterAuth({
           // Production cross-subdomain settings
           sameSite: "none",
           secure: true,
-          partitioned: true,
         },
   trustedOrigins: [process.env.APP_URL as string],
   socialProviders: {
