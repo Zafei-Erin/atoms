@@ -6,6 +6,10 @@ export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
   }),
+  crossSubDomainCookies: {
+    enabled: true,
+    domain: process.env.DOMAIN,
+  },
   trustedOrigins: [process.env.APP_URL as string],
   socialProviders: {
     google: {
