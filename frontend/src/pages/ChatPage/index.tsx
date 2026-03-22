@@ -1,24 +1,59 @@
-import { AssistantRuntimeProvider, useLocalRuntime, type ChatModelAdapter } from "@assistant-ui/react";
+import {
+  AssistantRuntimeProvider,
+  useLocalRuntime,
+  type ChatModelAdapter,
+  type ChatModelRunResult,
+} from "@assistant-ui/react";
 import { useEffect, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { ChatLayout } from "./components";
 import { useArtifactStore } from "@/store/artifact";
+import {
+  getChoiceFromUserText,
+  parseArtifactFromText,
+} from "@/store/artifact-parser";
 import { getProject } from "@/api/projects";
 import { streamChat } from "@/api/chat";
 
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: JsonValue }
+  | JsonValue[];
+
+type JsonObject = { [key: string]: JsonValue };
+
+type StoredTextPart = { type: string; text?: string };
+type StoredToolCallPart = {
+  type: "tool-call";
+  toolCallId: string;
+  toolName: string;
+  args: JsonObject;
+  argsText: string;
+  result?: string;
+};
+
+type RuntimeTextPart = { type: "text" | "reasoning"; text: string };
+type RuntimeToolCallPart = {
+  type: "tool-call";
+  toolCallId: string;
+  toolName: string;
+  args: JsonObject;
+  argsText: string;
+  result?: string;
+};
+
+function isStoredToolCallPart(
+  part: StoredTextPart | StoredToolCallPart,
+): part is StoredToolCallPart {
+  return part.type === "tool-call";
+}
+
 interface StoredMessage {
   role: "user" | "assistant";
-  content: Array<
-    | { type: string; text?: string }
-    | {
-        type: "tool-call";
-        toolCallId: string;
-        toolName: string;
-        args: Record<string, unknown>;
-        argsText: string;
-        result?: string;
-      }
-  >;
+  content: Array<StoredTextPart | StoredToolCallPart>;
 }
 
 export function ChatPage() {
@@ -46,9 +81,19 @@ export function ChatPage() {
             .filter((p) => p.type === "text")
             .map((p) => p.text ?? "")
             .join("");
-          const match = text.match(/```html\n([\s\S]*?)```/);
-          if (match) {
-            useArtifactStore.getState().setCode(match[1]);
+          const previousUserMessage = i > 0 ? msgs[i - 1] : null;
+          const previousUserText =
+            previousUserMessage?.role === "user"
+              ? previousUserMessage.content
+                  .filter((p) => p.type === "text")
+                  .map((p) => p.text ?? "")
+                  .join("")
+              : "";
+          const artifact = parseArtifactFromText(text, {
+            stage: getChoiceFromUserText(previousUserText) ? "final" : "proposals",
+          });
+          if (artifact.mode !== "empty") {
+            useArtifactStore.getState().hydrateFromParsed(artifact);
             break;
           }
         }
@@ -80,8 +125,26 @@ function ChatPageInner({
   initialMessages: StoredMessage[];
   initialMessage?: string;
 }) {
+  const toTextPart = (part: { type: string; text?: string }) => ({
+    type: "text" as const,
+    text: part.text ?? "",
+  });
+
   const chatAdapter: ChatModelAdapter = {
     async *run({ messages, abortSignal }) {
+      const lastUserMessage = [...messages]
+        .reverse()
+        .find((message) => message.role === "user");
+      const latestUserText = lastUserMessage?.content
+        .filter((part) => part.type === "text")
+        .map((part) => (part as { text?: string }).text ?? "")
+        .join("") ?? "";
+      const choice = getChoiceFromUserText(latestUserText);
+
+      if (choice && useArtifactStore.getState().mode === "choices") {
+        useArtifactStore.getState().selectChoice(choice);
+      }
+
       try {
         const apiMessages = messages
           .filter((m) => m.role === "user" || m.role === "assistant")
@@ -109,7 +172,7 @@ function ChatPageInner({
             type: "tool-call";
             toolCallId: string;
             toolName: string;
-            args: Record<string, unknown>;
+            args: JsonObject;
             argsText: string;
             status: { type: "running" | "complete" };
             result?: string;
@@ -144,9 +207,9 @@ function ChatPageInner({
               if (parsed.type === "reasoning") {
                 reasoningText += parsed.text;
               } else if (parsed.type === "tool") {
-                let args: Record<string, unknown> = {};
+                let args: JsonObject = {};
                 try {
-                  args = JSON.parse(parsed.argsText) as Record<string, unknown>;
+                  args = JSON.parse(parsed.argsText) as JsonObject;
                 } catch {
                   args = {};
                 }
@@ -162,30 +225,25 @@ function ChatPageInner({
                 });
               } else {
                 responseText += parsed.text;
-
-                const match = responseText.match(/```html\n([\s\S]*?)(?:```|$)/);
-                if (match) {
+                const artifact = parseArtifactFromText(responseText, {
+                  stage: choice ? "final" : "proposals",
+                });
+                if (artifact.mode !== "empty") {
                   useArtifactStore.getState().setStreaming(true);
-                  useArtifactStore.getState().setCode(match[1]);
+                  useArtifactStore.getState().hydrateFromParsed(artifact);
                 }
               }
 
-              const content: Array<
-                | { type: "text" | "reasoning"; text: string }
-                | {
-                    type: "tool-call";
-                    toolCallId: string;
-                    toolName: string;
-                    args: Record<string, unknown>;
-                    argsText: string;
+              const content = Array.from(toolParts.values()) as Array<
+                | RuntimeTextPart
+                | (RuntimeToolCallPart & {
                     status: { type: "running" | "complete" };
-                    result?: string;
-                  }
-              > = Array.from(toolParts.values());
+                  })
+              >;
               if (reasoningText) content.push({ type: "reasoning", text: reasoningText });
               if (responseText) content.push({ type: "text", text: responseText });
 
-              yield { content };
+              yield { content } as unknown as ChatModelRunResult;
             } catch {
               // Skip malformed SSE lines
             }
@@ -200,30 +258,34 @@ function ChatPageInner({
   const runtime = useLocalRuntime(chatAdapter, {
     initialMessages: initialMessages.map((m) => ({
       role: m.role,
-      content: m.content.flatMap((p) => {
+      content: m.content.reduce<Array<RuntimeTextPart | RuntimeToolCallPart>>((acc, p) => {
+        if (isStoredToolCallPart(p)) {
+          acc.push({
+            type: "tool-call" as const,
+            toolCallId: p.toolCallId,
+            toolName: p.toolName,
+            args: p.args,
+            argsText: p.argsText,
+            ...(p.result !== undefined ? { result: p.result } : {}),
+          });
+          return acc;
+        }
+
         if (
           (p.type === "text" || p.type === "reasoning") &&
           typeof p.text === "string"
         ) {
-          return [{ type: p.type as "text" | "reasoning", text: p.text }];
+          acc.push({ type: p.type as "text" | "reasoning", text: p.text });
+          return acc;
         }
 
-        if (p.type === "tool-call") {
-          return [
-            {
-              type: "tool-call" as const,
-              toolCallId: p.toolCallId,
-              toolName: p.toolName,
-              args: p.args,
-              argsText: p.argsText,
-              ...(p.result !== undefined ? { result: p.result } : {}),
-            },
-          ];
+        if (p.type === "text") {
+          acc.push(toTextPart(p));
         }
 
-        return [];
-      }),
-    })),
+        return acc;
+      }, []),
+    })) as unknown as Parameters<typeof useLocalRuntime>[1]["initialMessages"],
   });
 
   return (
