@@ -3,10 +3,12 @@ import { Hono } from "hono";
 const wpsRouter = new Hono();
 
 wpsRouter.get("/files/:fileId", async (c) => {
+  const fileId = c.req.param("fileId");
+
   return c.json({
     code: 0,
     data: {
-      id: "112345",
+      id: fileId,
       name: "test.docx",
       version: 1,
       size: 1123,
