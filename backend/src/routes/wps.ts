@@ -11,6 +11,7 @@ wpsRouter.get("/files/:fileId", async (c) => {
       id: fileId,
       name: "test.docx",
       version: 1,
+      url: "https://doc-review.tos-cn-beijing.volces.com/%E9%99%84%E4%BB%B63-%E4%B8%AD%E5%9B%BD%E5%B9%B3%E5%AE%89%E9%87%91%E8%A3%95%E4%BA%BA%E7%94%9F%E7%90%86%E8%B4%A2%E4%BA%A7%E5%93%81-f1689605-cfd0-4246-bd86-375a38526fce-1776655921492.docx?X-Tos-Algorithm=TOS4-HMAC-SHA256&X-Tos-Content-Sha256=UNSIGNED-PAYLOAD&X-Tos-Credential=AKTP23R3oKR4PnicVxMBiuxex21w36zc7zYLVc93N9b6zHk%2F20260420%2Fcn-beijing%2Ftos%2Frequest&X-Tos-Date=20260420T094805Z&X-Tos-Expires=3600&X-Tos-SignedHeaders=host&X-Tos-Security-Token=nChBvMlNIdFphUGtMcUtHWld2.CiQKEHVNU1JGYmN4M1BjUm9iVlMSEMsgl20pb0eOqCJCSwl9zIAQo9-XzwYYs_uXzwYgqvvC6wcoATCq-8LrBzoEcm9vdEIDdG9zUhcwNDg45omL5py655So5oi3I01xVEhwTVgBYAE.JTJEa9MlxQqMHwhUxBWaBt7w1YQH4EWSo8IeZ8utNRDn8tQ9_EykNfED3U6oqi8qnG_KqJ36jMGXH3tmp0fuXg&X-Tos-Signature=ddcf9d942439a635f1e425299b23558d908c3c157b990285fd6cbd8237635bfc",
       size: 1123,
       creator_id: "system",
       modifier_id: "system",
@@ -25,7 +26,7 @@ wpsRouter.get("/files/:fileId/download", async (c) => {
     code: 0,
     data: {
       download_url:
-        "https://doc-review.tos-cn-beijing.volces.com/%E9%99%84%E4%BB%B65-%E3%80%90%E5%8B%9F%E4%B9%A6%E3%80%91%E6%88%90%E9%83%BD%E9%AB%98%E6%8A%95%E4%BA%A7%E5%9F%8E%E5%BB%BA%E8%AE%BE%E9%9B%86%E5%9B%A2%E6%9C%89%E9%99%90%E5%85%AC%E5%8F%B82025%E5%B9%B4%E9%9D%A2%E5%90%91%E4%B8%93%E4%B8%9A%E6%8A%95%E8%B5%84%E8%80%85%E9%9D%9E%E5%85%AC%E5%BC%80%E5%8F%91%E8%A1%8C%E5%85%AC%E5%8F%B8%E5%80%BA%E5%88%B8%E5%8B%9F%E9%9B%86%E8%AF%B4%E6%98%8E%E4%B9%A60216%EF%BC%88%E6%B8%85%E6%B4%81%E7%89%88%EF%BC%89-1776500687598.docx",
+        "https://doc-review.tos-cn-beijing.volces.com/%E9%99%84%E4%BB%B63-%E4%B8%AD%E5%9B%BD%E5%B9%B3%E5%AE%89%E9%87%91%E8%A3%95%E4%BA%BA%E7%94%9F%E7%90%86%E8%B4%A2%E4%BA%A7%E5%93%81-f1689605-cfd0-4246-bd86-375a38526fce-1776655921492.docx?X-Tos-Algorithm=TOS4-HMAC-SHA256&X-Tos-Content-Sha256=UNSIGNED-PAYLOAD&X-Tos-Credential=AKTP23R3oKR4PnicVxMBiuxex21w36zc7zYLVc93N9b6zHk%2F20260420%2Fcn-beijing%2Ftos%2Frequest&X-Tos-Date=20260420T094805Z&X-Tos-Expires=3600&X-Tos-SignedHeaders=host&X-Tos-Security-Token=nChBvMlNIdFphUGtMcUtHWld2.CiQKEHVNU1JGYmN4M1BjUm9iVlMSEMsgl20pb0eOqCJCSwl9zIAQo9-XzwYYs_uXzwYgqvvC6wcoATCq-8LrBzoEcm9vdEIDdG9zUhcwNDg45omL5py655So5oi3I01xVEhwTVgBYAE.JTJEa9MlxQqMHwhUxBWaBt7w1YQH4EWSo8IeZ8utNRDn8tQ9_EykNfED3U6oqi8qnG_KqJ36jMGXH3tmp0fuXg&X-Tos-Signature=ddcf9d942439a635f1e425299b23558d908c3c157b990285fd6cbd8237635bfc",
     },
   });
 });
