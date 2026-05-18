@@ -8,6 +8,7 @@ export const projects = pgTable("projects", {
     .references(() => user.id, { onDelete: "cascade" }),
   title: text("title"),
   status: text("status").notNull().default("active"),
+  claudeSessionId: text("claudeSessionId"),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
   updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 });

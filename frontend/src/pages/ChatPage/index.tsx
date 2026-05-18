@@ -74,9 +74,18 @@ export function ChatPage() {
         const msgs = data.messages ?? [];
         setInitialMessages(msgs);
 
-        // Restore artifact from the last assistant message that contains an HTML code block
+        // Restore artifact from the last assistant message
         for (let i = msgs.length - 1; i >= 0; i--) {
           if (msgs[i].role !== "assistant") continue;
+
+          // Check for artifact part first (from edit mode)
+          const artifactPart = msgs[i].content.find((p) => p.type === "artifact");
+          if (artifactPart && artifactPart.text) {
+            useArtifactStore.getState().setCode(artifactPart.text);
+            break;
+          }
+
+          // Fallback: parse HTML code blocks from text (generation mode)
           const text = msgs[i].content
             .filter((p) => p.type === "text")
             .map((p) => p.text ?? "")
@@ -125,11 +134,6 @@ function ChatPageInner({
   initialMessages: StoredMessage[];
   initialMessage?: string;
 }) {
-  const toTextPart = (part: { type: string; text?: string }) => ({
-    type: "text" as const,
-    text: part.text ?? "",
-  });
-
   const chatAdapter: ChatModelAdapter = {
     async *run({ messages, abortSignal }) {
       const lastUserMessage = [...messages]
@@ -155,7 +159,9 @@ function ChatPageInner({
               .map((p) => ({ type: "text" as const, text: (p as { text: string }).text })),
           }));
 
-        const res = await streamChat(projectId, apiMessages, abortSignal);
+        const artifactState = useArtifactStore.getState();
+        const currentArtifact = artifactState.mode === "final" ? artifactState.code : undefined;
+        const res = await streamChat(projectId, apiMessages, currentArtifact, abortSignal);
 
         if (res.status === 401) throw new Error("Please log in to continue.");
         if (!res.ok) throw new Error("An error occurred. Please try again.");
@@ -202,10 +208,16 @@ function ChatPageInner({
                     status: "running" | "complete";
                     argsText: string;
                     result?: string;
-                  };
+                  }
+                | { type: "artifact-update"; code: string };
 
-              if (parsed.type === "reasoning") {
+              let shouldYield = false;
+
+              if (parsed.type === "artifact-update") {
+                useArtifactStore.getState().setCode(parsed.code);
+              } else if (parsed.type === "reasoning") {
                 reasoningText += parsed.text;
+                shouldYield = true;
               } else if (parsed.type === "tool") {
                 let args: JsonObject = {};
                 try {
@@ -223,7 +235,8 @@ function ChatPageInner({
                   status: { type: parsed.status },
                   ...(parsed.result !== undefined ? { result: parsed.result } : {}),
                 });
-              } else {
+                shouldYield = true;
+              } else if (parsed.type === "text") {
                 responseText += parsed.text;
                 const artifact = parseArtifactFromText(responseText, {
                   stage: choice ? "final" : "proposals",
@@ -232,18 +245,21 @@ function ChatPageInner({
                   useArtifactStore.getState().setStreaming(true);
                   useArtifactStore.getState().hydrateFromParsed(artifact);
                 }
+                shouldYield = true;
               }
 
-              const content = Array.from(toolParts.values()) as Array<
-                | RuntimeTextPart
-                | (RuntimeToolCallPart & {
-                    status: { type: "running" | "complete" };
-                  })
-              >;
-              if (reasoningText) content.push({ type: "reasoning", text: reasoningText });
-              if (responseText) content.push({ type: "text", text: responseText });
+              if (shouldYield) {
+                const content = Array.from(toolParts.values()) as Array<
+                  | RuntimeTextPart
+                  | (RuntimeToolCallPart & {
+                      status: { type: "running" | "complete" };
+                    })
+                >;
+                if (reasoningText) content.push({ type: "reasoning", text: reasoningText });
+                if (responseText) content.push({ type: "text", text: responseText });
 
-              yield { content } as unknown as ChatModelRunResult;
+                yield { content } as unknown as ChatModelRunResult;
+              }
             } catch {
               // Skip malformed SSE lines
             }
@@ -271,16 +287,9 @@ function ChatPageInner({
           return acc;
         }
 
-        if (
-          (p.type === "text" || p.type === "reasoning") &&
-          typeof p.text === "string"
-        ) {
-          acc.push({ type: p.type as "text" | "reasoning", text: p.text });
+        if (p.type === "text" || p.type === "reasoning") {
+          acc.push({ type: p.type as "text" | "reasoning", text: p.text ?? "" });
           return acc;
-        }
-
-        if (p.type === "text") {
-          acc.push(toTextPart(p));
         }
 
         return acc;

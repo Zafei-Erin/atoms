@@ -28,7 +28,7 @@ COPY --from=builder /app/frontend/dist /usr/share/nginx/html
 
 # nginx config to support React Router (SPA fallback)
 RUN printf 'server {\n\
-    listen 80;\n\
+    listen 5173;\n\
     root /usr/share/nginx/html;\n\
     index index.html;\n\
     location / {\n\
@@ -36,6 +36,6 @@ RUN printf 'server {\n\
     }\n\
 }\n' > /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+EXPOSE 5173
 
 CMD ["nginx", "-g", "daemon off;"]

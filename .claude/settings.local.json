@@ -10,7 +10,12 @@
       "WebFetch(domain:github.com)",
       "Bash(gh issue view:*)",
       "Bash(find:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "WebFetch(domain:openai.github.io)",
+      "Bash(node:*)",
+      "Bash(npm install:*)",
+      "Bash(npx drizzle-kit:*)",
+      "Read(//tmp/**)"
     ]
   }
 }

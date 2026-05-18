@@ -41,7 +41,7 @@ export async function getProjectWithMessages(id: string, userId: string) {
 export async function updateProject(
   id: string,
   userId: string,
-  data: Partial<{ title: string; status: string; updatedAt: Date }>,
+  data: Partial<{ title: string; status: string; claudeSessionId: string; updatedAt: Date }>,
 ) {
   await db.update(projects).set(data).where(and(eq(projects.id, id), eq(projects.userId, userId)));
 }

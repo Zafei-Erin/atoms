@@ -14,24 +14,12 @@ import {
   listAvailableSkills,
   parseLoadSkillArgs,
 } from "./tools/load-skill-tool";
-import type { AgentMessage, AgentToolCallPart } from "./types";
+import type { AgentEngineResult, AgentEvent, AgentMessage, AgentToolCallPart } from "../types";
 
 const MAX_AGENT_TURNS = 8;
 
-export type HtmlAgentEvent =
-  | {
-      type: "tool";
-      toolCallId: string;
-      toolName: string;
-      status: "running" | "complete";
-      argsText: string;
-      result?: string;
-    }
-  | { type: "reasoning"; text: string }
-  | { type: "text"; text: string };
-
 type RunHtmlAgentOptions = {
-  onEvent?: (event: HtmlAgentEvent) => Promise<void> | void;
+  onEvent?: (event: AgentEvent) => Promise<void> | void;
 };
 
 function formatPreview(
@@ -202,7 +190,7 @@ export async function runHtmlAgent(
   openai: OpenAI,
   messages: AgentMessage[],
   options: RunHtmlAgentOptions = {},
-) {
+): Promise<AgentEngineResult> {
   const availableSkills = await listAvailableSkills();
   const loadedSkills = new Set<string>();
   const conversation: ChatCompletionMessageParam[] = [

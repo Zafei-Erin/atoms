@@ -1,2 +1,2 @@
 export { runHtmlAgent } from "./run-html-agent";
-export type { AgentMessage, AgentContentPart, AgentToolCallPart } from "./types";
+export type { AgentMessage, AgentContentPart, AgentToolCallPart } from "../types";

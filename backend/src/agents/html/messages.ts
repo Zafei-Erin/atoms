@@ -1,5 +1,5 @@
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import type { AgentContentPart, AgentMessage } from "./types";
+import type { AgentContentPart, AgentMessage } from "../types";
 
 function isTextPart(part: AgentMessage["content"][number]): part is AgentContentPart {
   return part.type === "text";
