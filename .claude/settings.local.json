@@ -15,7 +15,14 @@
       "Bash(node:*)",
       "Bash(npm install:*)",
       "Bash(npx drizzle-kit:*)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__query-docs",
+      "Bash(grep -oE \"stderr[^,;\\)}\\\\s]{0,40}\" /Users/hj/Desktop/atoms/backend/node_modules/@anthropic-ai/claude-agent-sdk/sdk.mjs)",
+      "WebFetch(domain:langfuse.com)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(git -C /Users/hj/Desktop/atoms/backend mv src/lib/instrumentation.ts src/agents/claude/instrumentation.ts)",
+      "Bash(git -C /Users/hj/Desktop/atoms/backend rm src/lib/observability.ts)"
     ]
   }
 }

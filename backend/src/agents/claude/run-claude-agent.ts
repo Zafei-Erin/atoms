@@ -1,10 +1,19 @@
 import { randomUUID } from "crypto";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
-import { query } from "@anthropic-ai/claude-agent-sdk";
+import {
+  propagateAttributes,
+  setActiveTraceIO,
+  startActiveObservation,
+} from "@langfuse/tracing";
+import { query } from "./instrumentation";
 import type { AgentEngineResult, AgentEvent, AgentMessage } from "../types";
 import { buildGenerationPrompt, buildEditPrompt } from "./prompt";
-import { ensureSessionDir, extractLastUserText, buildHistoryPrompt } from "./utils";
+import {
+  ensureSessionDir,
+  extractLastUserText,
+  buildHistoryPrompt,
+} from "./utils";
 import { createStreamHandler } from "./stream-handler";
 import { getLatestArtifact } from "../../repositories/messages";
 
@@ -26,12 +35,19 @@ async function executeQuery(
   const hasArtifact = existsSync(artifactPath);
 
   const queryOptions: Record<string, unknown> = {
-    systemPrompt: hasArtifact ? buildEditPrompt(artifactPath) : buildGenerationPrompt(),
+    systemPrompt: hasArtifact
+      ? buildEditPrompt(artifactPath)
+      : buildGenerationPrompt(),
     allowedTools: hasArtifact ? ["Read", "Edit"] : [],
     maxTurns: 30,
     includePartialMessages: true,
     permissionMode: "bypassPermissions",
     cwd: workDir,
+    env: {
+      ANTHROPIC_BASE_URL: process.env.ANTHROPIC_BASE_URL,
+      ANTHROPIC_AUTH_TOKEN: process.env.ANTHROPIC_AUTH_TOKEN,
+      ...process.env,
+    },
   };
 
   if (isResume) {
@@ -75,25 +91,61 @@ export async function runClaudeAgent(
 
   const userText = extractLastUserText(messages);
 
-  try {
-    return await executeQuery(userText, sessionId, isResume, workDir, artifactPath, currentArtifact, options.onEvent);
-  } catch (e) {
-    if (!isResume) throw e;
+  return propagateAttributes(
+    {
+      sessionId,
+      metadata: options.projectId ? { projectId: options.projectId } : undefined,
+    },
+    async () =>
+      startActiveObservation("claude-agent", async () => {
+        const runQuery = async (): Promise<AgentEngineResult> => {
+          try {
+            return await executeQuery(
+              userText,
+              sessionId,
+              isResume,
+              workDir,
+              artifactPath,
+              currentArtifact,
+              options.onEvent,
+            );
+          } catch (e) {
+            if (!isResume) throw e;
 
-    console.error("[claude-agent] session resume failed, rebuilding:", (e as Error).message);
+            console.error(
+              "[claude-agent] session resume failed, rebuilding:",
+              (e as Error).message,
+            );
 
-    // Rebuild with same session ID but as a new session
-    const dbArtifact = options.projectId
-      ? await getLatestArtifact(options.projectId)
-      : undefined;
-    const artifactToRestore = dbArtifact ?? currentArtifact;
-    if (artifactToRestore) {
-      writeFileSync(artifactPath, artifactToRestore);
-    }
+            const dbArtifact = options.projectId
+              ? await getLatestArtifact(options.projectId)
+              : undefined;
+            const artifactToRestore = dbArtifact ?? currentArtifact;
+            if (artifactToRestore) {
+              writeFileSync(artifactPath, artifactToRestore);
+            }
 
-    const history = buildHistoryPrompt(messages.slice(0, -1));
-    const prompt = history ? `${history}\n\nUser: ${userText}` : userText;
+            const history = buildHistoryPrompt(messages.slice(0, -1));
+            const prompt = history ? `${history}\n\nUser: ${userText}` : userText;
 
-    return await executeQuery(prompt, sessionId, false, workDir, artifactPath, artifactToRestore, options.onEvent);
-  }
+            return await executeQuery(
+              prompt,
+              sessionId,
+              false,
+              workDir,
+              artifactPath,
+              artifactToRestore,
+              options.onEvent,
+            );
+          }
+        };
+
+        const result = await runQuery();
+        setActiveTraceIO({
+          input: userText,
+          output: result.responseText ?? "",
+        });
+        return result;
+      }),
+  );
 }
